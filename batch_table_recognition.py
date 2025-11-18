@@ -84,6 +84,7 @@ class BatchTableRecognizer:
         """
         try:
             import cv2
+            import numpy as np
             print(f"正在处理: {Path(image_path).name}")
 
             # 检查图片是否存在
@@ -91,8 +92,9 @@ class BatchTableRecognizer:
                 print(f"  ✗ 错误: 文件不存在")
                 return None
 
-            # 读取图片
-            img = cv2.imread(image_path)
+            # 读取图片（使用 np.fromfile 支持中文路径）
+            # cv2.imread 在 Windows 上无法处理中文文件名
+            img = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), cv2.IMREAD_COLOR)
             if img is None:
                 print(f"  ✗ 错误: 无法读取图片")
                 return None
