@@ -279,8 +279,8 @@ def main():
                         help='输出目录（默认: output）')
     parser.add_argument('--device', type=str, default='gpu', choices=['cpu', 'gpu'],
                         help='设备类型（默认: gpu）')
-    parser.add_argument('--lang', type=str, default='ch', choices=['ch', 'en', 'korean'],
-                        help='语言类型（默认: ch 中文，korean 韩文）')
+    parser.add_argument('--lang', type=str, default='ch', choices=['ch', 'en'],
+                        help='语言类型（默认: ch 中文，en 英文）')
 
     args = parser.parse_args()
 
