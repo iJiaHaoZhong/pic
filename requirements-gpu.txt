@@ -1,0 +1,38 @@
+# PaddleOCR 3.x GPU 版本依赖
+# 注意: 安装前请先安装 NVIDIA 驱动和 CUDA Toolkit
+
+# PaddlePaddle GPU 版本 (自动检测 CUDA 版本)
+paddlepaddle-gpu>=3.0.0
+
+# PaddleOCR
+paddleocr>=3.0.0
+
+# 图像处理
+opencv-python>=4.5.0
+Pillow>=9.0.0
+
+# 数值计算
+numpy>=1.21.0
+
+# Excel 文件支持
+openpyxl>=3.0.0
+
+# 其他依赖
+tqdm>=4.64.0
+
+# 安装说明:
+# 1. 确保已安装 NVIDIA 驱动和 CUDA Toolkit
+#    - 运行 nvidia-smi 检查驱动
+#    - 运行 nvcc --version 检查 CUDA
+#
+# 2. 先卸载 CPU 版本 (如果已安装)
+#    pip uninstall paddlepaddle paddleocr
+#
+# 3. 安装 GPU 版本依赖
+#    pip install -r requirements-gpu.txt
+#
+# 4. 验证 GPU 是否可用
+#    python check_gpu.py
+#
+# 5. 使用 GPU 运行
+#    python batch_table_recognition.py --device gpu

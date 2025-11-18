@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 批量表格识别脚本
-使用 PaddleOCR 的表格识别功能对目录中的所有图片进行表格识别
+使用 PaddleOCR 2.x 的 PPStructure 进行批量表格识别
+支持 GPU 加速
 """
 
 import os
@@ -11,70 +12,79 @@ import glob
 import argparse
 from pathlib import Path
 from datetime import datetime
-import cv2
-import numpy as np
 
-# 兼容新旧版本的 PaddleOCR
+# 导入 PaddleOCR
 try:
     from paddleocr import PPStructure, save_structure_res
 except ImportError:
-    try:
-        from paddleocr import PPStructureV3 as PPStructure, save_structure_res
-    except ImportError:
-        print("错误: 无法导入 PaddleOCR 的表格识别模块")
-        print("请确保已安装 PaddleOCR: pip install paddleocr")
-        sys.exit(1)
+    print("=" * 80)
+    print("错误: 无法导入 PaddleOCR 的表格识别模块")
+    print("=" * 80)
+    print("\n请安装 PaddleOCR:")
+    print("  pip install paddleocr==2.7.3")
+    print("=" * 80)
+    sys.exit(1)
 
 
 class BatchTableRecognizer:
     """批量表格识别器"""
 
     def __init__(self,
-                 det_model_dir=None,
-                 rec_model_dir=None,
-                 table_model_dir=None,
-                 rec_char_dict_path=None,
-                 table_char_dict_path=None,
                  output_dir='output',
+                 use_gpu=True,
                  lang='ch'):
         """
         初始化批量表格识别器
 
         Args:
-            det_model_dir: 文本检测模型路径
-            rec_model_dir: 文本识别模型路径
-            table_model_dir: 表格结构识别模型路径
-            rec_char_dict_path: 文本识别字典路径
-            table_char_dict_path: 表格结构识别字典路径
             output_dir: 输出目录
+            use_gpu: 是否使用 GPU
             lang: 语言，'ch'为中文，'en'为英文
         """
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
+        print("=" * 80)
+        print("初始化 PaddleOCR PPStructure")
+        print("=" * 80)
+        print(f"输出目录: {output_dir}")
+        print(f"使用 GPU: {use_gpu}")
+        print(f"语言: {lang}")
+        print("=" * 80)
+        print("\n正在加载模型（首次运行会自动下载模型，请耐心等待）...")
+
         # 初始化 PPStructure
-        table_engine_params = {
-            'show_log': True,
-            'output': output_dir
-        }
+        try:
+            self.lang = lang
 
-        # 如果提供了模型路径，则使用自定义模型
-        if det_model_dir:
-            table_engine_params['det_model_dir'] = det_model_dir
-        if rec_model_dir:
-            table_engine_params['rec_model_dir'] = rec_model_dir
-        if table_model_dir:
-            table_engine_params['table_model_dir'] = table_model_dir
-        if rec_char_dict_path:
-            table_engine_params['rec_char_dict_path'] = rec_char_dict_path
-        if table_char_dict_path:
-            table_engine_params['table_char_dict_path'] = table_char_dict_path
-
-        # 设置语言
-        table_engine_params['lang'] = lang
-
-        print(f"初始化 PPStructure，参数: {table_engine_params}")
-        self.table_engine = PPStructure(**table_engine_params)
+            # 根据语言设置不同的配置
+            if lang == 'korean':
+                # 韩文：使用韩文 OCR 模型 + 表格结构识别
+                self.engine = PPStructure(
+                    show_log=True,
+                    use_gpu=use_gpu,
+                    lang='korean',  # 使用韩文模型
+                    table=True,
+                    ocr=True,
+                    layout=True  # 必须启用才能保持 OCR 开启
+                )
+            else:
+                self.engine = PPStructure(
+                    show_log=True,
+                    use_gpu=use_gpu,
+                    lang=lang,
+                    table=True,  # 启用表格识别
+                    ocr=True,    # 启用 OCR
+                    layout=True  # 启用版面分析以保持 OCR 开启
+                )
+            print("✓ 模型加载完成！\n")
+        except Exception as e:
+            print(f"\n✗ 模型初始化失败: {str(e)}")
+            print("\n可能的原因:")
+            print("  1. 网络连接问题，无法下载模型")
+            print("  2. PaddleOCR 版本问题")
+            print("  3. GPU 驱动或 CUDA 问题")
+            raise
 
     def recognize_single_image(self, image_path):
         """
@@ -87,31 +97,48 @@ class BatchTableRecognizer:
             识别结果
         """
         try:
-            print(f"正在处理: {image_path}")
+            import cv2
+            import numpy as np
+            print(f"正在处理: {Path(image_path).name}")
 
-            # 读取图片
-            img = cv2.imread(image_path)
+            # 检查图片是否存在
+            if not os.path.exists(image_path):
+                print(f"  ✗ 错误: 文件不存在")
+                return None
+
+            # 读取图片（使用 np.fromfile 支持中文路径）
+            # cv2.imread 在 Windows 上无法处理中文文件名
+            img = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), cv2.IMREAD_COLOR)
             if img is None:
-                print(f"错误: 无法读取图片 {image_path}")
+                print(f"  ✗ 错误: 无法读取图片")
                 return None
 
             # 进行表格识别
-            result = self.table_engine(img)
+            result = self.engine(img)
 
-            return result
+            if result:
+                table_count = sum(1 for item in result if item.get('type') == 'table')
+                print(f"  ✓ 识别成功，检测到 {table_count} 个表格")
+                return result
+            else:
+                print(f"  ⚠ 未检测到内容")
+                return None
+
         except Exception as e:
-            print(f"处理 {image_path} 时发生错误: {str(e)}")
+            print(f"  ✗ 处理失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
 
-    def save_results(self, image_path, result):
+    def save_results(self, image_path, results):
         """
         保存识别结果
 
         Args:
             image_path: 原始图片路径
-            result: 识别结果
+            results: 识别结果
         """
-        if result is None:
+        if results is None or len(results) == 0:
             return
 
         try:
@@ -122,33 +149,41 @@ class BatchTableRecognizer:
             image_output_dir = os.path.join(self.output_dir, image_name)
             os.makedirs(image_output_dir, exist_ok=True)
 
-            # 保存结果
-            save_structure_res(result, image_output_dir, image_name)
+            # 使用 PaddleOCR 的保存函数
+            save_structure_res(results, image_output_dir, image_name)
 
-            # 保存 HTML 文件
-            for i, item in enumerate(result):
-                if item['type'] == 'table':
+            # 额外保存 HTML 文件（带样式）
+            table_idx = 0
+            for item in results:
+                if item.get('type') == 'table':
                     html_content = item.get('res', {}).get('html', '')
                     if html_content:
-                        html_file = os.path.join(image_output_dir, f'{image_name}_table_{i}.html')
+                        html_file = os.path.join(image_output_dir, f'{image_name}_table_{table_idx}.html')
                         with open(html_file, 'w', encoding='utf-8') as f:
                             f.write('<!DOCTYPE html>\n')
                             f.write('<html>\n<head>\n')
                             f.write('<meta charset="UTF-8">\n')
-                            f.write(f'<title>{image_name} - Table {i}</title>\n')
+                            f.write(f'<title>{image_name} - Table {table_idx}</title>\n')
                             f.write('<style>\n')
-                            f.write('table { border-collapse: collapse; margin: 20px; }\n')
-                            f.write('td, th { border: 1px solid #ddd; padding: 8px; }\n')
+                            f.write('body { font-family: Arial, sans-serif; padding: 20px; }\n')
+                            f.write('table { border-collapse: collapse; margin: 20px 0; width: 100%; }\n')
+                            f.write('td, th { border: 1px solid #ddd; padding: 8px; text-align: left; }\n')
+                            f.write('th { background-color: #4CAF50; color: white; }\n')
+                            f.write('tr:nth-child(even) { background-color: #f2f2f2; }\n')
                             f.write('</style>\n')
                             f.write('</head>\n<body>\n')
-                            f.write(f'<h2>{image_name} - Table {i}</h2>\n')
+                            f.write(f'<h2>{image_name} - Table {table_idx}</h2>\n')
                             f.write(html_content)
                             f.write('\n</body>\n</html>')
-                        print(f"  已保存 HTML: {html_file}")
+                        print(f"    ✓ HTML: {html_file}")
+                        table_idx += 1
 
-            print(f"  结果已保存至: {image_output_dir}")
+            print(f"  ✓ 结果已保存到: {image_output_dir}/")
+
         except Exception as e:
-            print(f"保存结果时发生错误: {str(e)}")
+            print(f"  ✗ 保存结果失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     def batch_recognize(self, image_dir, image_pattern='*.jpg'):
         """
@@ -171,10 +206,24 @@ class BatchTableRecognizer:
         # 去重并排序
         image_paths = sorted(list(set(image_paths)))
 
+        # 过滤掉非图片文件
+        image_paths = [p for p in image_paths if os.path.isfile(p)]
+
         total_images = len(image_paths)
-        print(f"\n找到 {total_images} 张图片")
-        print(f"开始批量处理...\n")
+        print("\n" + "=" * 80)
+        print(f"找到 {total_images} 张图片")
         print("=" * 80)
+
+        if total_images == 0:
+            print("未找到图片文件！")
+            return {
+                'total': 0,
+                'success': 0,
+                'fail': 0,
+                'elapsed_time': 0
+            }
+
+        print("\n开始批量处理...\n")
 
         # 统计信息
         success_count = 0
@@ -183,17 +232,15 @@ class BatchTableRecognizer:
 
         # 逐个处理图片
         for idx, image_path in enumerate(image_paths, 1):
-            print(f"\n[{idx}/{total_images}] ", end='')
+            print(f"\n[{idx}/{total_images}] " + "-" * 60)
 
-            result = self.recognize_single_image(image_path)
+            results = self.recognize_single_image(image_path)
 
-            if result is not None:
-                self.save_results(image_path, result)
+            if results is not None and len(results) > 0:
+                self.save_results(image_path, results)
                 success_count += 1
             else:
                 fail_count += 1
-
-            print("-" * 80)
 
         # 计算耗时
         end_time = datetime.now()
@@ -201,12 +248,14 @@ class BatchTableRecognizer:
 
         # 打印统计信息
         print("\n" + "=" * 80)
-        print("批量处理完成!")
+        print("批量处理完成！")
+        print("=" * 80)
         print(f"总图片数: {total_images}")
         print(f"成功: {success_count}")
         print(f"失败: {fail_count}")
         print(f"总耗时: {elapsed_time:.2f} 秒")
-        print(f"平均每张: {elapsed_time/total_images:.2f} 秒")
+        if total_images > 0:
+            print(f"平均每张: {elapsed_time/total_images:.2f} 秒")
         print(f"结果保存在: {os.path.abspath(self.output_dir)}")
         print("=" * 80)
 
@@ -220,25 +269,32 @@ class BatchTableRecognizer:
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description='批量表格识别工具')
+    parser = argparse.ArgumentParser(
+        description='批量表格识别工具 - 基于 PaddleOCR PPStructure',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例用法:
+  # 使用 GPU 识别当前目录所有图片
+  python batch_table_recognition.py --device gpu
+
+  # 指定图片目录和输出目录
+  python batch_table_recognition.py --device gpu --image_dir ./images --output_dir ./results
+
+  # 使用 CPU
+  python batch_table_recognition.py --device cpu
+        """
+    )
+
     parser.add_argument('--image_dir', type=str, default='.',
-                        help='图片所在目录，默认为当前目录')
+                        help='图片所在目录（默认: 当前目录）')
     parser.add_argument('--image_pattern', type=str, default='*.jpg',
-                        help='图片文件匹配模式，默认为 *.jpg')
+                        help='图片文件匹配模式（默认: *.jpg）')
     parser.add_argument('--output_dir', type=str, default='output',
-                        help='输出目录，默认为 output')
-    parser.add_argument('--det_model_dir', type=str, default=None,
-                        help='文本检测模型目录')
-    parser.add_argument('--rec_model_dir', type=str, default=None,
-                        help='文本识别模型目录')
-    parser.add_argument('--table_model_dir', type=str, default=None,
-                        help='表格结构识别模型目录')
-    parser.add_argument('--rec_char_dict_path', type=str, default=None,
-                        help='文本识别字典路径')
-    parser.add_argument('--table_char_dict_path', type=str, default=None,
-                        help='表格结构识别字典路径')
-    parser.add_argument('--lang', type=str, default='ch', choices=['ch', 'en'],
-                        help='语言类型，ch为中文（默认），en为英文')
+                        help='输出目录（默认: output）')
+    parser.add_argument('--device', type=str, default='gpu', choices=['cpu', 'gpu'],
+                        help='设备类型（默认: gpu）')
+    parser.add_argument('--lang', type=str, default='ch', choices=['ch', 'en', 'korean'],
+                        help='语言类型（默认: ch 中文，en 英文，korean 韩文）')
 
     args = parser.parse_args()
 
@@ -247,21 +303,27 @@ def main():
         print(f"错误: 图片目录不存在: {args.image_dir}")
         sys.exit(1)
 
-    # 创建批量识别器
-    recognizer = BatchTableRecognizer(
-        det_model_dir=args.det_model_dir,
-        rec_model_dir=args.rec_model_dir,
-        table_model_dir=args.table_model_dir,
-        rec_char_dict_path=args.rec_char_dict_path,
-        table_char_dict_path=args.table_char_dict_path,
-        output_dir=args.output_dir,
-        lang=args.lang
-    )
+    try:
+        # 创建批量识别器
+        recognizer = BatchTableRecognizer(
+            output_dir=args.output_dir,
+            use_gpu=(args.device == 'gpu'),
+            lang=args.lang
+        )
 
-    # 执行批量识别
-    stats = recognizer.batch_recognize(args.image_dir, args.image_pattern)
+        # 执行批量识别
+        stats = recognizer.batch_recognize(args.image_dir, args.image_pattern)
 
-    return 0 if stats['fail'] == 0 else 1
+        return 0 if stats['fail'] == 0 else 1
+
+    except KeyboardInterrupt:
+        print("\n\n用户中断，程序退出")
+        return 1
+    except Exception as e:
+        print(f"\n程序运行出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 
 if __name__ == '__main__':
