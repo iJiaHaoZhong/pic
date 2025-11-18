@@ -55,19 +55,18 @@ class BatchTableRecognizer:
 
         # 初始化 PPStructure
         try:
+            self.lang = lang
+
             # 根据语言设置不同的配置
             if lang == 'korean':
-                # 韩文需要特殊配置：使用英文 layout + 韩文 OCR
+                # 韩文：使用韩文 OCR 模型 + 表格结构识别
                 self.engine = PPStructure(
                     show_log=True,
                     use_gpu=use_gpu,
-                    lang='en',  # layout 模型使用英文
+                    lang='korean',  # 使用韩文模型
                     table=True,
                     ocr=True,
-                    layout=False,
-                    # 设置韩文 OCR 模型
-                    rec_char_type='korean',
-                    det_lang='en'
+                    layout=True  # 必须启用才能保持 OCR 开启
                 )
             else:
                 self.engine = PPStructure(
@@ -76,7 +75,7 @@ class BatchTableRecognizer:
                     lang=lang,
                     table=True,  # 启用表格识别
                     ocr=True,    # 启用 OCR
-                    layout=False # 禁用版面分析（加快速度）
+                    layout=True  # 启用版面分析以保持 OCR 开启
                 )
             print("✓ 模型加载完成！\n")
         except Exception as e:
