@@ -17,6 +17,26 @@
 - Python 3.7+
 - PaddlePaddle 3.0.0+
 - PaddleOCR 3.0.0+
+- （可选）NVIDIA GPU + CUDA 用于 GPU 加速
+
+## 🚀 GPU 加速 (推荐)
+
+使用 GPU 可以提升 3-5 倍速度！
+
+### 快速开始
+
+```bash
+# 1. 检查 GPU 环境
+python check_gpu.py
+
+# 2. 安装 GPU 版本（如果检测失败）
+pip install -r requirements-gpu.txt
+
+# 3. 使用 GPU 运行
+python batch_table_recognition.py --device gpu
+```
+
+**详细配置指南**: 请查看 [GPU_SETUP.md](GPU_SETUP.md)
 
 ## 安装步骤
 
