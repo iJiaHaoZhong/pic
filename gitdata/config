@@ -9,3 +9,8 @@
 [remote "origin"]
 	url = https://github.com/iJiaHaoZhong/pic.git
 	fetch = +refs/heads/*:refs/remotes/origin/*
+[lfs]
+	repositoryformatversion = 0
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
