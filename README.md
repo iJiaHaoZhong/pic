@@ -1,20 +1,22 @@
 # 批量表格识别工具
 
-基于 PaddleOCR 的批量表格识别工具，可以快速识别目录中的所有表格图片，并导出为 HTML 格式。
+基于 PaddleOCR 3.x 的 TableRecognitionPipelineV2 API 的批量表格识别工具，可以快速识别目录中的所有表格图片，并导出为 HTML、Excel、JSON 等多种格式。
 
 ## 功能特点
 
-- 批量处理目录中的所有图片
-- 支持中英文表格识别
-- 自动生成 HTML 表格文件
-- 进度显示和统计信息
-- 支持自定义模型路径
+- ✅ 批量处理目录中的所有图片
+- ✅ 基于 PaddleOCR 3.x 最新 API
+- ✅ 自动生成 HTML、Excel、JSON 多种格式
+- ✅ 进度显示和统计信息
+- ✅ 支持 CPU 和 GPU 加速
+- ✅ 支持文档方向分类和矫正
+- ✅ 识别准确率高（TEDS 95.89%）
 
 ## 环境要求
 
 - Python 3.7+
-- PaddlePaddle 2.5.0+
-- PaddleOCR 2.7.0+
+- PaddlePaddle 3.0.0+
+- PaddleOCR 3.0.0+
 
 ## 安装步骤
 
@@ -24,95 +26,67 @@
 pip install -r requirements.txt
 ```
 
-### 2. 下载模型（可选）
-
-如果想使用本地模型，可以下载以下模型：
-
-#### 中文表格识别模型
+或者手动安装：
 
 ```bash
-# 创建模型目录
-mkdir -p models && cd models
+# 安装 PaddleOCR 3.x
+pip install paddleocr>=3.0.0
 
-# 下载 PP-OCRv3 文本检测模型
-wget https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv3_mobile_det_infer.tar
-tar xf PP-OCRv3_mobile_det_infer.tar
+# 如果需要 GPU 支持
+pip install paddlepaddle-gpu>=3.0.0
 
-# 下载 PP-OCRv3 文本识别模型
-wget https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv3_mobile_rec_infer.tar
-tar xf PP-OCRv3_mobile_rec_infer.tar
-
-# 下载 PP-StructureV2 中文表格识别模型
-wget https://paddleocr.bj.bcebos.com/ppstructure/models/slanet/paddle3.0b2/ch_ppstructure_mobile_v2.0_SLANet_infer.tar
-tar xf ch_ppstructure_mobile_v2.0_SLANet_infer.tar
-
-cd ..
+# 安装其他依赖
+pip install opencv-python pillow numpy openpyxl tqdm
 ```
 
-#### 英文表格识别模型
+### 2. 验证安装
 
 ```bash
-# 创建模型目录
-mkdir -p models && cd models
-
-# 下载英文文本检测模型
-wget https://paddleocr.bj.bcebos.com/dygraph_v2.0/table/en_ppocr_mobile_v2.0_table_det_infer.tar
-tar xf en_ppocr_mobile_v2.0_table_det_infer.tar
-
-# 下载英文文本识别模型
-wget https://paddleocr.bj.bcebos.com/dygraph_v2.0/table/en_ppocr_mobile_v2.0_table_rec_infer.tar
-tar xf en_ppocr_mobile_v2.0_table_rec_infer.tar
-
-# 下载英文表格识别模型
-wget https://paddleocr.bj.bcebos.com/ppstructure/models/slanet/paddle3.0b2/en_ppstructure_mobile_v2.0_SLANet_infer.tar
-tar xf en_ppstructure_mobile_v2.0_SLANet_infer.tar
-
-cd ..
+python -c "from paddleocr import TableRecognitionPipelineV2; print('安装成功！')"
 ```
 
 ## 使用方法
 
-### 基础使用（使用在线模型）
+### 基础使用（推荐）
 
 最简单的使用方法，会自动下载模型：
 
 ```bash
-# 识别当前目录下的所有 .jpg 图片
+# 识别当前目录下的所有图片
 python batch_table_recognition.py
-
-# 指定图片目录
-python batch_table_recognition.py --image_dir /path/to/images
-
-# 指定输出目录
-python batch_table_recognition.py --image_dir /path/to/images --output_dir results
 ```
 
-### 使用本地模型
+首次运行会自动下载模型（约 30MB），请耐心等待。
 
-如果已经下载了模型，可以指定模型路径以提高速度：
-
-#### 中文表格识别
+### 指定目录和输出路径
 
 ```bash
-python batch_table_recognition.py \
-    --image_dir . \
-    --output_dir output \
-    --det_model_dir models/PP-OCRv3_mobile_det_infer \
-    --rec_model_dir models/PP-OCRv3_mobile_rec_infer \
-    --table_model_dir models/ch_ppstructure_mobile_v2.0_SLANet_infer \
-    --lang ch
+# 指定图片目录和输出目录
+python batch_table_recognition.py --image_dir ./images --output_dir ./results
 ```
 
-#### 英文表格识别
+### 使用 GPU 加速
 
 ```bash
+# 使用 GPU 加速识别
+python batch_table_recognition.py --device gpu
+```
+
+### 启用高级功能
+
+```bash
+# 启用文档方向分类（处理旋转的图片）
+python batch_table_recognition.py --use_doc_orientation_classify
+
+# 启用文档矫正（处理扭曲的图片）
+python batch_table_recognition.py --use_doc_unwarping
+
+# 同时启用多个功能
 python batch_table_recognition.py \
-    --image_dir . \
-    --output_dir output \
-    --det_model_dir models/en_ppocr_mobile_v2.0_table_det_infer \
-    --rec_model_dir models/en_ppocr_mobile_v2.0_table_rec_infer \
-    --table_model_dir models/en_ppstructure_mobile_v2.0_SLANet_infer \
-    --lang en
+    --device gpu \
+    --use_doc_orientation_classify \
+    --use_doc_unwarping \
+    --output_dir results
 ```
 
 ### 参数说明
@@ -122,10 +96,9 @@ python batch_table_recognition.py \
 | `--image_dir` | 图片所在目录 | `.` (当前目录) |
 | `--image_pattern` | 图片文件匹配模式 | `*.jpg` |
 | `--output_dir` | 输出目录 | `output` |
-| `--det_model_dir` | 文本检测模型目录 | `None` (使用在线模型) |
-| `--rec_model_dir` | 文本识别模型目录 | `None` (使用在线模型) |
-| `--table_model_dir` | 表格结构识别模型目录 | `None` (使用在线模型) |
-| `--lang` | 语言类型 (`ch`/`en`) | `ch` |
+| `--device` | 设备类型 (`cpu`/`gpu`) | `cpu` |
+| `--use_doc_orientation_classify` | 启用文档方向分类 | 否 |
+| `--use_doc_unwarping` | 启用文档矫正 | 否 |
 
 ## 输出结果
 
@@ -134,88 +107,180 @@ python batch_table_recognition.py \
 ```
 output/
 ├── 微信图片_20251118231557_1085_15/
-│   ├── 微信图片_20251118231557_1085_15_table_0.html  # 表格 HTML 文件
-│   └── res.txt                                      # 识别结果文本
+│   ├── table_0.html                # HTML 格式表格
+│   ├── table_0.xlsx                # Excel 格式表格
+│   ├── table_0.json                # JSON 格式数据
+│   └── ...
 ├── 微信图片_20251118231558_1086_15/
-│   ├── 微信图片_20251118231558_1086_15_table_0.html
-│   └── res.txt
+│   ├── table_0.html
+│   ├── table_0.xlsx
+│   └── table_0.json
 └── ...
 ```
 
-每个 HTML 文件可以直接在浏览器中打开查看表格识别结果。
+- **HTML 文件**: 可以直接在浏览器中打开查看表格
+- **Excel 文件**: 可以在 Excel、WPS 等软件中打开编辑
+- **JSON 文件**: 包含完整的识别数据，方便程序处理
 
-## 示例
+## 使用示例
 
-### 批量识别当前目录所有图片
+### 示例 1: 快速开始
+
+```bash
+# 使用快速开始脚本（自动安装依赖）
+./quick_start.sh
+```
+
+### 示例 2: 识别当前目录所有图片
 
 ```bash
 python batch_table_recognition.py
 ```
 
-### 识别特定目录的 PNG 图片
+### 示例 3: 识别特定目录的 PNG 图片
 
 ```bash
-python batch_table_recognition.py --image_dir ./images --image_pattern "*.png"
+python batch_table_recognition.py --image_dir ./photos --image_pattern "*.png"
 ```
 
-### 使用自定义输出目录
+### 示例 4: 使用 GPU 并启用所有功能
 
 ```bash
-python batch_table_recognition.py --output_dir my_results
+python batch_table_recognition.py \
+    --device gpu \
+    --use_doc_orientation_classify \
+    --use_doc_unwarping \
+    --output_dir gpu_results
 ```
+
+## 代码示例
+
+如果你想在自己的 Python 代码中使用这个功能：
+
+```python
+from batch_table_recognition import BatchTableRecognizer
+
+# 创建识别器
+recognizer = BatchTableRecognizer(
+    output_dir='output',
+    device='cpu',  # 或 'gpu'
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False
+)
+
+# 批量识别
+stats = recognizer.batch_recognize(
+    image_dir='.',
+    image_pattern='*.jpg'
+)
+
+print(f"成功: {stats['success']}, 失败: {stats['fail']}")
+```
+
+更多示例请参考 `example_usage.py`。
 
 ## 性能说明
 
 - **准确率**: 在 PubTabNet 数据集上 TEDS 达到 95.89%
 - **速度**: CPU 上单张图片约 766ms（使用 MKL 加速）
+- **GPU**: 使用 GPU 可显著提升速度（约 3-5 倍）
 - **支持**: 支持复杂表格结构、跨行跨列单元格
 
 ## 技术原理
 
-该工具基于 PaddleOCR 的 PP-Structure 系统，包含三个核心模型：
+该工具基于 PaddleOCR 3.x 的 TableRecognitionPipelineV2，这是一个完整的表格识别流水线，包含：
 
-1. **单行文本检测模型 (DB)**: 检测图片中的文本区域
-2. **单行文本识别模型 (CRNN)**: 识别检测到的文本内容
-3. **表格结构识别模型 (SLANet)**: 识别表格结构和单元格坐标
-
-识别流程：
-1. 文本检测模型检测单行文字坐标
-2. 文本识别模型识别文字内容
-3. 表格结构模型识别表格结构和单元格坐标
-4. 组合文字识别结果和表格结构生成 HTML
+1. **文本检测模型**: 检测图片中的文本区域
+2. **文本识别模型**: 识别检测到的文字内容
+3. **表格结构识别模型**: 识别表格结构和单元格坐标
+4. **后处理**: 组合文字识别结果和表格结构生成多种格式输出
 
 ## 常见问题
 
-### 1. 安装 PaddlePaddle 失败
+### 1. 导入错误：无法导入 TableRecognitionPipelineV2
 
-请根据您的系统和 CUDA 版本选择合适的安装命令：
+**问题**: `ImportError: cannot import name 'TableRecognitionPipelineV2' from 'paddleocr'`
 
+**解决方案**:
 ```bash
-# CPU 版本
-pip install paddlepaddle
-
-# GPU 版本（CUDA 11.2）
-pip install paddlepaddle-gpu
+# 确保安装的是 PaddleOCR 3.x 版本
+pip uninstall paddleocr
+pip install paddleocr>=3.0.0
 ```
 
-更多安装选项请参考：https://www.paddlepaddle.org.cn/install/quick
+### 2. 模型下载失败或速度慢
 
-### 2. 模型下载速度慢
+**问题**: 首次运行时模型下载失败或很慢
 
-可以使用国内镜像或手动下载模型后指定路径。
+**解决方案**:
+- 检查网络连接
+- 使用国内镜像：根据 PaddleOCR 3.x 文档，默认已使用 HuggingFace 镜像
+- 如果仍然失败，可以手动下载模型后放到缓存目录
 
-### 3. 内存不足
+### 3. Excel 文件无法保存
 
-如果图片较大或数量较多，可以考虑：
+**问题**: 提示 "Excel 保存失败 (可能缺少 openpyxl)"
+
+**解决方案**:
+```bash
+pip install openpyxl
+```
+
+### 4. GPU 支持
+
+**问题**: 如何使用 GPU 加速
+
+**解决方案**:
+```bash
+# 安装 GPU 版本的 PaddlePaddle
+pip uninstall paddlepaddle
+pip install paddlepaddle-gpu
+
+# 运行时指定 GPU
+python batch_table_recognition.py --device gpu
+```
+
+### 5. 内存不足
+
+**问题**: 处理大量图片时内存不足
+
+**解决方案**:
 - 分批处理图片
-- 使用更小的模型
-- 增加系统内存
+- 使用更小的图片
+- 增加系统内存或使用交换空间
+
+### 6. 识别准确率不高
+
+**问题**: 某些表格识别效果不好
+
+**解决方案**:
+- 确保图片清晰，分辨率适中（推荐 1000-3000 像素宽度）
+- 使用 `--use_doc_orientation_classify` 处理旋转的图片
+- 使用 `--use_doc_unwarping` 处理扭曲的图片
+- 如果表格太复杂，可以尝试裁剪成多个简单表格
+
+## 版本更新
+
+### v2.0 (2024-11-18)
+- 🎉 升级到 PaddleOCR 3.x API
+- ✨ 使用 TableRecognitionPipelineV2
+- ✨ 支持输出 HTML、Excel、JSON 多种格式
+- ✨ 简化依赖项，提高兼容性
+- 🐛 修复导入错误问题
+
+### v1.0 (2024-11-18)
+- 初始版本
+- 基于 PaddleOCR 2.x PPStructure
 
 ## 参考资料
 
 - [PaddleOCR 官方文档](https://github.com/PaddlePaddle/PaddleOCR)
-- [PP-Structure 文档](https://github.com/PaddlePaddle/PaddleOCR/blob/main/ppstructure/README_ch.md)
-- [表格识别文档](https://github.com/PaddlePaddle/PaddleOCR/blob/main/ppstructure/docs/table_recognition.md)
+- [PaddleOCR 3.x 表格识别文档](http://www.paddleocr.ai/main/en/version3.x/pipeline_usage/table_recognition_v2.html)
+- [TableRecognitionPipelineV2 API 文档](https://paddlepaddle.github.io/PaddleOCR/main/en/version3.x/pipeline_usage/table_recognition_v2.html)
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
 
 ## 许可证
 
