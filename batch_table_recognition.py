@@ -55,14 +55,29 @@ class BatchTableRecognizer:
 
         # 初始化 PPStructure
         try:
-            self.engine = PPStructure(
-                show_log=True,
-                use_gpu=use_gpu,
-                lang=lang,
-                table=True,  # 启用表格识别
-                ocr=True,    # 启用 OCR
-                layout=False # 禁用版面分析（加快速度）
-            )
+            # 根据语言设置不同的配置
+            if lang == 'korean':
+                # 韩文需要特殊配置：使用英文 layout + 韩文 OCR
+                self.engine = PPStructure(
+                    show_log=True,
+                    use_gpu=use_gpu,
+                    lang='en',  # layout 模型使用英文
+                    table=True,
+                    ocr=True,
+                    layout=False,
+                    # 设置韩文 OCR 模型
+                    rec_char_type='korean',
+                    det_lang='en'
+                )
+            else:
+                self.engine = PPStructure(
+                    show_log=True,
+                    use_gpu=use_gpu,
+                    lang=lang,
+                    table=True,  # 启用表格识别
+                    ocr=True,    # 启用 OCR
+                    layout=False # 禁用版面分析（加快速度）
+                )
             print("✓ 模型加载完成！\n")
         except Exception as e:
             print(f"\n✗ 模型初始化失败: {str(e)}")
@@ -279,8 +294,8 @@ def main():
                         help='输出目录（默认: output）')
     parser.add_argument('--device', type=str, default='gpu', choices=['cpu', 'gpu'],
                         help='设备类型（默认: gpu）')
-    parser.add_argument('--lang', type=str, default='ch', choices=['ch', 'en'],
-                        help='语言类型（默认: ch 中文，en 英文）')
+    parser.add_argument('--lang', type=str, default='ch', choices=['ch', 'en', 'korean'],
+                        help='语言类型（默认: ch 中文，en 英文，korean 韩文）')
 
     args = parser.parse_args()
 
