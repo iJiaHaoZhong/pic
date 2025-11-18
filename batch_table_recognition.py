@@ -13,7 +13,17 @@ from pathlib import Path
 from datetime import datetime
 import cv2
 import numpy as np
-from paddleocr import PPStructure, save_structure_res
+
+# 兼容新旧版本的 PaddleOCR
+try:
+    from paddleocr import PPStructure, save_structure_res
+except ImportError:
+    try:
+        from paddleocr import PPStructureV3 as PPStructure, save_structure_res
+    except ImportError:
+        print("错误: 无法导入 PaddleOCR 的表格识别模块")
+        print("请确保已安装 PaddleOCR: pip install paddleocr")
+        sys.exit(1)
 
 
 class BatchTableRecognizer:
