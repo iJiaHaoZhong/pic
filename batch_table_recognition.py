@@ -12,6 +12,11 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
+# 修复 PaddlePaddle 3.0 beta 的 PIR 模式 bug
+# 必须在导入 paddle 之前设置
+os.environ['FLAGS_enable_pir_in_executor'] = '0'
+os.environ['FLAGS_pir_apply_inplace_pass'] = '0'
+
 # 导入 PaddleOCR 3.x 的表格识别 API
 try:
     from paddleocr import TableRecognitionPipelineV2
